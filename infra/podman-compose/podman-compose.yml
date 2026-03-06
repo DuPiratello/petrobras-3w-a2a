@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    # Run the Ollama server. Models should be pre-pulled into the volume.
+    command: ["serve"]
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    # Host port 11434 is commonly used; if already in use on the host, change the left side.
+    ports:
+      - "11435:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - a2a-net
+
+  fastapi:
+    build: ../../src/backend
+    depends_on:
+      - ollama
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_URL=http://ollama:11434/v1/completions
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    networks:
+      - a2a-net
+  
+  gradio:
+    build: ../../src/frontend
+    ports:
+      - "7860:7860"
+    depends_on:
+      - fastapi
+    environment:
+      # Use the Compose service name to reach the FastAPI service from inside the gradio container.
+      # When running locally (not in container), it still falls back to localhost.
+      - API_URL=http://fastapi:8000/chat
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    networks:
+      - a2a-net
+  
+networks:
+  a2a-net:
+    driver: bridge
+
+volumes:
+  ollama-data:
