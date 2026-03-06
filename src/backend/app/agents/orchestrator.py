@@ -1,4 +1,7 @@
-from utils.ollama_client import query_ollama
+try:
+    from utils.ollama_client import query_ollama
+except ModuleNotFoundError:
+    from app.utils.ollama_client import query_ollama
 
 async def decidir_agente(pergunta: str) -> str:
     prompt = f"""Você é um orquestrador. Analise a pergunta e diga apenas uma palavra: 'anomalias' se for sobre problemas em poços, sensores, eventos; 'financeiro' se for sobre gastos, orçamento; 'geral' caso contrário.

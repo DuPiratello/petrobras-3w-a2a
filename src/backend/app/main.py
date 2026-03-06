@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from agents import orchestrator, anomalias, financeiro, geral
+try:
+    from agents import orchestrator, anomalias, financeiro, geral
+except ModuleNotFoundError:
+    from app.agents import orchestrator, anomalias, financeiro, geral
 
 app = FastAPI(title="A2A Orquestrador")
 
