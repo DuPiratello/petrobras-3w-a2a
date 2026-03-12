@@ -1,0 +1,49 @@
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtualenvs / env files
+.env
+.env.*
+.venv
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Logs
+*.log
+
+# Test/coverage/cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data persistence
+/data/
+/3W/dataset/
+
+# Podman compose runtime artifacts (keep the compose file)
+/infra/podman-compose/*
+!/infra/podman-compose/podman-compose.yml
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
