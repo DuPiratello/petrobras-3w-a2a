@@ -43,7 +43,7 @@ Estes requisitos impõem restricoes de arquitetura, seguranca e desempenho, rela
 - Categoria: Implementacao / Restricoes de hardware e software.
 - Mapeamento: `infra/podman-compose/` e Dockerfiles.
 
-**RNF02*** **- Armazenamento e recuperacao eficiente (Persistencia)**
+***RNF02*** **- Armazenamento e recuperacao eficiente (Persistencia)**
 - Descricao: A camada de dados deve suportar busca vetorial de alta performance para o RAG e armazenamento em data lake (Bronze, Silver, Gold) para os dados brutos/processados da Petrobras 3W.
 - Categoria: Eficiencia / Persistencia.
 - Mapeamento: Milvus (`data/milvus/`), MinIO (`data/minio/`) e PostgreSQL (`data/postgres/`).

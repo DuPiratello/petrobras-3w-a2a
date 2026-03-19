@@ -123,7 +123,9 @@ Este documento contém todo o planejamento, arquitetura, ferramentas e passos pa
 | **Monitoramento** | Prometheus + Grafana | latest | Métricas e dashboards |
 | **Monitoramento GPU** | DCGM NVIDIA | 3.3+ | Uso de GPU |
 | **Dataset** | 3W Petrobras | - | Dados de poços |
-| ver sobre RAGAS, lembrar que o milvus, mlflow(criar bucket para armazenar dados de treino), minIO tem interface,
+| ver sobre RAGAS, 
+| lembrar que o milvus, mlflow(criar bucket para armazenar dados de treino), minIO tem interface
+| Ver estrutura de dados e tipos de dados do 3W e criar agents específicos para cada função
 
 ---
 
