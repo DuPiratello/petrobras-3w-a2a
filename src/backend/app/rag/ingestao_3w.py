@@ -3,8 +3,8 @@ import os
 import sys
 from pathlib import Path
 
-import pandas as pd
-from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, connections, utility
+import pandas as pd #type: ignore
+from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, connections, utility #type: ignore
 
 # Permite execucao direta do arquivo (python /app/rag/ingestao_3w.py) dentro do container.
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -20,31 +20,46 @@ except ModuleNotFoundError:
 COLLECTION_NAME = "anomalias_3w"
 
 
-def _resolver_caminho_parquet() -> Path:
+def _resolver_parquets() -> list[Path]:
     env_path = os.getenv("DATASET_3W_PARQUET")
     if env_path:
         path = Path(env_path)
+        if path.is_dir():
+            encontrados = sorted(path.rglob("*.parquet"))
+            if encontrados:
+                return encontrados
+            raise FileNotFoundError(f"Nenhum .parquet encontrado em: {path}")
         if path.exists():
-            return path
+            return [path]
         raise FileNotFoundError(
             f"DATASET_3W_PARQUET foi definido, mas nao existe: {path}"
         )
 
+    env_glob = os.getenv("DATASET_3W_GLOB")
+    if env_glob:
+        encontrados = sorted(Path(".").glob(env_glob))
+        if encontrados:
+            return encontrados
+        raise FileNotFoundError(f"Nenhum .parquet encontrado para glob: {env_glob}")
+
     candidatos = [
-        Path("data/3W/dataset/well_A/well_A.parquet"),
-        Path("/app/data/3W/dataset/well_A/well_A.parquet"),
-        Path("3W/dataset/well_A/well_A.parquet"),
+        Path("3W/dataset"),
+        Path("/app/3W/dataset"),
+        Path("data/3W/dataset"),
+        Path("/app/data/3W/dataset"),
     ]
     for candidato in candidatos:
-        if candidato.exists():
-            return candidato
+        if candidato.exists() and candidato.is_dir():
+            encontrados = sorted(candidato.rglob("*.parquet"))
+            if encontrados:
+                return encontrados
 
-    encontrados = sorted(Path(".").rglob("well_A.parquet"))
+    encontrados = sorted(Path(".").rglob("*.parquet"))
     if encontrados:
-        return encontrados[0]
+        return encontrados
 
     raise FileNotFoundError(
-        "Nao encontrei o dataset 3W. Defina DATASET_3W_PARQUET ou coloque well_A.parquet em um caminho esperado."
+        "Nao encontrei .parquet do dataset 3W. Defina DATASET_3W_PARQUET ou DATASET_3W_GLOB."
     )
 
 
@@ -105,8 +120,7 @@ def _normalizar_dataframe(df: pd.DataFrame, fonte: Path) -> pd.DataFrame:
     return df
 
 
-def main() -> None:
-    parquet_path = _resolver_caminho_parquet()
+def _ler_dataframe_limitado(parquet_path: Path) -> pd.DataFrame:
     df = pd.read_parquet(parquet_path)
     max_rows_env = os.getenv("INGEST_MAX_ROWS")
     if max_rows_env:
@@ -116,35 +130,66 @@ def main() -> None:
                 df = df.head(max_rows)
         except ValueError:
             pass
-    df = _normalizar_dataframe(df, parquet_path)
+    return df
 
-    sensor_cols = [c for c in df.columns if c not in ["well", "timestamp", "evento", "class", "state"]]
-    textos = df.apply(
-        lambda row: (
-            f"Well {row['well']} at {row['timestamp']} sensors: "
-            f"{row[sensor_cols].to_dict()}"
-        ),
-        axis=1,
-    ).tolist()
-    embeddings = gerar_embeddings_batch(textos)
-    embedding_dim = len(embeddings[0]) if embeddings else 0
-    if embedding_dim <= 0:
-        raise ValueError("Nao foi possivel gerar embeddings para os registros selecionados.")
-    collection = _obter_ou_criar_colecao(embedding_dim)
-    sensor_data_list = [
-        json.dumps(row, ensure_ascii=True) for row in df[sensor_cols].to_dict(orient="records")
-    ]
 
-    insert_data = [
-        df["well"].astype(str).tolist(),
-        df["timestamp"].astype(str).tolist(),
-        sensor_data_list,
-        df["evento"].fillna("normal").astype(str).tolist(),
-        embeddings,
-    ]
-    collection.insert(insert_data)
-    collection.flush()
-    print(f"Inseridos {len(df)} registros de {parquet_path}")
+def main() -> None:
+    parquets = _resolver_parquets()
+    max_files_env = os.getenv("INGEST_MAX_FILES")
+    if max_files_env:
+        try:
+            max_files = int(max_files_env)
+            if max_files > 0:
+                parquets = parquets[:max_files]
+        except ValueError:
+            pass
+
+    if not parquets:
+        raise FileNotFoundError("Nenhum arquivo .parquet encontrado para ingestao.")
+
+    collection: Collection | None = None
+    total_inseridos = 0
+    for idx, parquet_path in enumerate(parquets, start=1):
+        df = _ler_dataframe_limitado(parquet_path)
+        if df.empty:
+            print(f"[{idx}/{len(parquets)}] Ignorando vazio: {parquet_path}")
+            continue
+        df = _normalizar_dataframe(df, parquet_path)
+
+        sensor_cols = [
+            c for c in df.columns if c not in ["well", "timestamp", "evento", "class", "state"]
+        ]
+        textos = df.apply(
+            lambda row: (
+                f"Well {row['well']} at {row['timestamp']} sensors: "
+                f"{row[sensor_cols].to_dict()}"
+            ),
+            axis=1,
+        ).tolist()
+        embeddings = gerar_embeddings_batch(textos)
+        embedding_dim = len(embeddings[0]) if embeddings else 0
+        if embedding_dim <= 0:
+            raise ValueError("Nao foi possivel gerar embeddings para os registros selecionados.")
+        if collection is None:
+            collection = _obter_ou_criar_colecao(embedding_dim)
+
+        sensor_data_list = [
+            json.dumps(row, ensure_ascii=True)
+            for row in df[sensor_cols].to_dict(orient="records")
+        ]
+        insert_data = [
+            df["well"].astype(str).tolist(),
+            df["timestamp"].astype(str).tolist(),
+            sensor_data_list,
+            df["evento"].fillna("normal").astype(str).tolist(),
+            embeddings,
+        ]
+        collection.insert(insert_data)
+        collection.flush()
+        total_inseridos += len(df)
+        print(f"[{idx}/{len(parquets)}] Inseridos {len(df)} registros de {parquet_path}")
+
+    print(f"Ingestao concluida. Total de registros: {total_inseridos}")
 
 
 if __name__ == "__main__":

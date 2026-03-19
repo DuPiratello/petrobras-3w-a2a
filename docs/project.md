@@ -113,7 +113,7 @@ Este documento contém todo o planejamento, arquitetura, ferramentas e passos pa
 | **LLM Local** | Ollama | latest | Modelos de linguagem (ex: llama3.2, phi3) |
 | **Embeddings** | Ollama (ou Hugging Face) | - | Gerar embeddings para RAG |
 | **Backend API** | FastAPI | 0.115+ | Endpoints para agentes |
-| **Interface** | Gradio | 5.x | Chatbot para testes |
+| **Interface** | Gradio | 5.x | Chatbot para testes | --> Não escalavel
 | **Banco relacional** | PostgreSQL | 15 | Metadados, auditoria, versões |
 | **Banco vetorial** | Milvus | 2.4+ | Armazenar e buscar embeddings |
 | **Armazenamento objetos** | MinIO | latest | Data Lake (Bronze/Silver/Gold) |
@@ -123,6 +123,7 @@ Este documento contém todo o planejamento, arquitetura, ferramentas e passos pa
 | **Monitoramento** | Prometheus + Grafana | latest | Métricas e dashboards |
 | **Monitoramento GPU** | DCGM NVIDIA | 3.3+ | Uso de GPU |
 | **Dataset** | 3W Petrobras | - | Dados de poços |
+| ver sobre RAGAS, lembrar que o milvus, mlflow(criar bucket para armazenar dados de treino), minIO tem interface,
 
 ---
 

@@ -40,24 +40,29 @@ podman exec -it podman-compose_ollama_1 ollama pull nomic-embed-text
 ```
 
 ### Ingestao do dataset 3W
-O script procura por `well_A.parquet` em:
-- `/app/3W/dataset/well_A/well_A.parquet`
-- `/app/data/3W/dataset/well_A/well_A.parquet`
-- `3W/dataset/well_A/well_A.parquet` (relativo)
+Por padrao o script procura arquivos `.parquet` em:
+- `/app/3W/dataset/**.parquet`
+- `/app/data/3W/dataset/**.parquet`
+- `3W/dataset/**.parquet` (relativo)
 
-Para executar:
+Para executar (varre tudo):
 ```bash
 podman exec -it podman-compose_fastapi_1 python /app/rag/ingestao_3w.py
 ```
 
-Para limitar a ingestao:
+Para limitar a ingestao por linhas (por arquivo):
 ```bash
 podman exec -it -e INGEST_MAX_ROWS=2000 podman-compose_fastapi_1 python /app/rag/ingestao_3w.py
 ```
 
-Para forcar um caminho especifico:
+Para limitar a quantidade de arquivos:
 ```bash
-podman exec -it -e DATASET_3W_PARQUET=/app/3W/dataset/well_A/well_A.parquet \
+podman exec -it -e INGEST_MAX_FILES=50 podman-compose_fastapi_1 python /app/rag/ingestao_3w.py
+```
+
+Para forcar um caminho especifico (arquivo ou diretorio):
+```bash
+podman exec -it -e DATASET_3W_PARQUET=/app/3W/dataset/0/WELL-00001_20170201010207.parquet \
   podman-compose_fastapi_1 python /app/rag/ingestao_3w.py
 ```
 
@@ -85,4 +90,3 @@ podman exec -it podman-compose_fastapi_1 ls -lah /app/3W/dataset/well_A
 cd /home/piratello/Desktop/AI Projects/Petrobras3w/infra/podman-compose
 podman-compose -f podman-compose.yml logs -f milvus
 ```
-
