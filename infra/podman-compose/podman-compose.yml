@@ -3,6 +3,7 @@ version: '3.8'
 services:
   ollama:
     image: docker.io/ollama/ollama:latest
+    container_name: ollama
     # Run the Ollama server. Models should be pre-pulled into the volume.
     command: ["serve"]
     environment:
@@ -17,10 +18,13 @@ services:
 
   fastapi:
     build: ../../src/backend
+    container_name: fastapi
     depends_on:
       - ollama
     ports:
       - "8000:8000"
+    volumes:
+      - ../../3W:/app/3W:ro
     environment:
       - OLLAMA_URL=http://ollama:11434/v1/completions
     extra_hosts:
@@ -30,6 +34,7 @@ services:
   
   gradio:
     build: ../../src/frontend
+    container_name: gradio
     ports:
       - "7860:7860"
     depends_on:
@@ -43,6 +48,91 @@ services:
     networks:
       - a2a-net
   
+  minio:
+    image: docker.io/minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - a2a-net
+  
+  mc:
+    image: quay.io/minio/mc:latest
+    container_name: mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/bronze --ignore-existing;
+      /usr/bin/mc mb myminio/silver --ignore-existing;
+      /usr/bin/mc mb myminio/gold --ignore-existing;
+      exit 0;
+      "
+    networks:
+      - a2a-net
+  
+  postgres:
+    image: docker.io/library/postgres:16
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=a2a
+      - POSTGRES_PASSWORD=a2a
+      - POSTGRES_DB=a2a_metadata
+    volumes:
+      - ../../data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - a2a-net
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: etcd
+    command: etcd -advertise-client-urls=http://0.0.0.0:2379 -listen-client-urls=http://0.0.0.0:2379
+    networks:
+      - a2a-net
+
+  minio-milvus:
+    image: docker.io/minio/minio:latest
+    container_name: minio-milvus
+    command: server /data --console-address ":9003"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ../../data/minio-milvus:/data
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    networks:
+      - a2a-net
+
+  milvus:
+    image: docker.io/milvusdb/milvus:v2.4.5
+    container_name: milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio-milvus:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - ../../data/milvus:/var/lib/milvus
+    ports:
+      - "19530:19530"
+    depends_on:
+      - etcd
+      - minio-milvus
+    networks:
+      - a2a-net
+
 networks:
   a2a-net:
     driver: bridge
