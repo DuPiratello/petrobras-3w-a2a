@@ -22,6 +22,9 @@ OLLAMA_CONTAINER ?= ollama
 MAX_ROWS ?= 2000
 MAX_FILES ?= 50
 PARQUET_PATH ?= /app/3W/dataset/0/WELL-00001_20170201010207.parquet
+EMBED_TIMEOUT ?= 300
+EMBED_BATCH_SIZE ?= 8
+EMBED_RETRIES ?= 3
 CHAT_TEXT ?= Houve alguma anomalia no poco A? Mostre contexto.
 
 help:
@@ -47,6 +50,7 @@ help:
 	@echo "  make ingest-max-rows MAX_ROWS=2000"
 	@echo "  make ingest-max-files MAX_FILES=50"
 	@echo "  make ingest-path PARQUET_PATH=/app/3W/dataset/0/arquivo.parquet"
+	@echo "  make ingest-max-files MAX_FILES=20 EMBED_TIMEOUT=300 EMBED_BATCH_SIZE=8"
 	@echo "  make dataset-check   - valida se o dataset esta montado no fastapi"
 	@echo "  make health          - testa /health da API"
 	@echo "  make chat-test CHAT_TEXT='sua pergunta'"
@@ -147,16 +151,35 @@ dataset-check:
 	podman exec -it $(FASTAPI_CONTAINER) ls -lah /app/3W/dataset | head
 
 ingest:
-	podman exec -it $(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
+	podman exec -it \
+		-e OLLAMA_EMBED_TIMEOUT=$(EMBED_TIMEOUT) \
+		-e OLLAMA_EMBED_BATCH_SIZE=$(EMBED_BATCH_SIZE) \
+		-e OLLAMA_EMBED_RETRIES=$(EMBED_RETRIES) \
+		$(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
 
 ingest-max-rows:
-	podman exec -it -e INGEST_MAX_ROWS=$(MAX_ROWS) $(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
+	podman exec -it \
+		-e INGEST_MAX_ROWS=$(MAX_ROWS) \
+		-e OLLAMA_EMBED_TIMEOUT=$(EMBED_TIMEOUT) \
+		-e OLLAMA_EMBED_BATCH_SIZE=$(EMBED_BATCH_SIZE) \
+		-e OLLAMA_EMBED_RETRIES=$(EMBED_RETRIES) \
+		$(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
 
 ingest-max-files:
-	podman exec -it -e INGEST_MAX_FILES=$(MAX_FILES) $(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
+	podman exec -it \
+		-e INGEST_MAX_FILES=$(MAX_FILES) \
+		-e OLLAMA_EMBED_TIMEOUT=$(EMBED_TIMEOUT) \
+		-e OLLAMA_EMBED_BATCH_SIZE=$(EMBED_BATCH_SIZE) \
+		-e OLLAMA_EMBED_RETRIES=$(EMBED_RETRIES) \
+		$(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
 
 ingest-path:
-	podman exec -it -e DATASET_3W_PARQUET=$(PARQUET_PATH) $(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
+	podman exec -it \
+		-e DATASET_3W_PARQUET=$(PARQUET_PATH) \
+		-e OLLAMA_EMBED_TIMEOUT=$(EMBED_TIMEOUT) \
+		-e OLLAMA_EMBED_BATCH_SIZE=$(EMBED_BATCH_SIZE) \
+		-e OLLAMA_EMBED_RETRIES=$(EMBED_RETRIES) \
+		$(FASTAPI_CONTAINER) python /app/rag/ingestao_3w.py
 
 health:
 	curl -s http://localhost:8000/health
