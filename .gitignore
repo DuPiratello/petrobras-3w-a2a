@@ -41,6 +41,7 @@ dist/
 
 # Podman compose runtime artifacts (keep the compose file)
 /infra/podman-compose/*
+!/infra/podman-compose/Makefile
 !/infra/podman-compose/podman-compose.yml
 
 # OS/editor
